@@ -3,7 +3,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { WebSocketServer } = require('ws');
-const https = require('https');
+const http = require('http');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,11 +13,10 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'video.html'));
 });
 
-const server = https.createServer({
-  key:  fs.readFileSync(process.env.SSL_KEY_PATH),
-  cert: fs.readFileSync(process.env.SSL_CERT_PATH),
-}, app);
+const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function broadcast(data) {
   const msg = JSON.stringify(data);
@@ -41,6 +40,8 @@ function minToTime(mins) {
   return `${h}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+// ── Schedule & state ─────────────────────────────────────────────────────────
+
 const schedule = JSON.parse(fs.readFileSync(path.join(__dirname, 'schedule.json'), 'utf8'));
 const stageTimes = schedule.map(s => timeToMin(s.time));
 
@@ -60,13 +61,9 @@ let clockTimer = null;
 
 function broadcastState() {
   broadcast({ type: 'state', state });
-  sendArduinoLeds();
 }
 
-function stopClock() {
-  clearInterval(clockTimer);
-}
-
+function stopClock()  { clearInterval(clockTimer); }
 function startClock() {
   clearInterval(clockTimer);
   clockTimer = setInterval(tick, TICK_MS);
@@ -75,19 +72,16 @@ function startClock() {
 function tick() {
   state.timeMin++;
   state.time = minToTime(state.timeMin);
-
   if (state.stage < schedule.length && state.timeMin >= stageTimes[state.stage]) {
     stopClock();
     startStage();
     return;
   }
-
   broadcastState();
 }
 
 function startStage() {
   const s = schedule[state.stage];
-
   if (s.end) {
     state.phase = 'done';
     state.prompt = '';
@@ -95,7 +89,6 @@ function startStage() {
     broadcastState();
     return;
   }
-
   state.phase = 'choosing';
   state.time = s.time;
   state.timeMin = stageTimes[state.stage];
@@ -139,62 +132,48 @@ function resetGame() {
   broadcastState();
 }
 
-function ledsForState() {
-  if (state.phase !== 'choosing') return [false, false, false];
-  const opts = state.options || [];
-  return [
-    opts.length >= 1,
-    opts.length >= 2,
-    opts.length >= 3,
-  ];
-}
+// ── Button → option label ─────────────────────────────────────────────────────
+const BUTTON_TO_LABEL = {
+  'Switch 1 pressed': 'A',
+  'Switch 2 pressed': 'B',
+  'Switch 3 pressed': 'C',
+  'Switch 4 pressed': 'D',
+};
 
-function sendArduinoLeds() {
-  const leds = ledsForState();
-  const msg = JSON.stringify(leds);
-  wss.clients.forEach((c) => {
-    if (c.readyState === 1 && c.isArduino) c.send(msg);
-  });
-}
+// ── WebSocket connections ─────────────────────────────────────────────────────
 
 wss.on('connection', (ws, req) => {
-  ws.isArduino = req.url === '/arduino';
+  const isArduino = req.url === '/arduino';
 
-  if (ws.isArduino) {
-    ws.send(JSON.stringify(ledsForState()));
+  if (isArduino) {
+    console.log('Arduino connected');
 
     ws.on('message', (raw) => {
-      let msg;
-      try { msg = JSON.parse(raw); } catch { return; }
-      if (!Array.isArray(msg) || msg.length !== 3) return;
-      const labels = ['A', 'B', 'C'];
-      const pressed = labels.find((_, i) => msg[i] === true);
-      if (pressed) pickOption(pressed);
+      const msg = raw.toString().trim();
+      console.log('Arduino says:', msg);
+      const label = BUTTON_TO_LABEL[msg];
+      if (label) pickOption(label);
+      else console.warn('Unknown message from Arduino:', msg);
     });
+
+    ws.on('close', () => console.log('Arduino disconnected'));
     return;
   }
 
+  // Browser client
   ws.send(JSON.stringify({ type: 'state', state }));
 
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
-
-    if (msg.type === 'pick') {
-      pickOption(msg.label);
-    }
-
+    if (msg.type === 'pick')    pickOption(msg.label);
     if (msg.type === 'start') {
       resetGame();
       state.timeMin = stageTimes[0] - 1;
       state.time = minToTime(state.timeMin);
       startClock();
     }
-
-    if (msg.type === 'reset') {
-      resetGame();
-    }
-
+    if (msg.type === 'reset')   resetGame();
     if (msg.type === 'speedup') {
       if (state.phase === 'acting') {
         const nextHour = Math.ceil((state.timeMin + 1) / 60) * 60;
@@ -205,9 +184,11 @@ wss.on('connection', (ws, req) => {
   });
 });
 
+// ── Start ─────────────────────────────────────────────────────────────────────
+
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} is already in use. Run: lsof -ti :${PORT} | xargs kill -9`);
+    console.error(`Port ${PORT} already in use. Run: lsof -ti :${PORT} | xargs kill -9`);
   } else {
     console.error(err);
   }
@@ -215,7 +196,5 @@ server.on('error', (err) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Server running at https://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${PORT}`);
 });
-
-
