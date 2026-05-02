@@ -1,0 +1,16 @@
+{
+  "name": "oral-health-game",
+  "version": "1.0.0",
+  "description": "An exhibition piece exploring the correlation between oral health and daily habits",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "lsof -ti :${PORT:-9124} | xargs kill -9 2>/dev/null; node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^4.18.2",
+    "https": "^1.0.0",
+    "ws": "^8.16.0"
+  }
+}

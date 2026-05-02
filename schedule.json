@@ -1,0 +1,67 @@
+[
+  {
+    "time": "8:00 AM",
+    "prompt": "Good morning",
+    "options": [
+      { "label": "A", "action": "Brush teeth", "room": 1, "sticker": "img/brushing tooth.png" },
+      { "label": "B", "action": "Skip",         "room": 0, "sticker": "img/null.png" }
+    ]
+  },
+  {
+    "time": "9:00 AM",
+    "prompt": "Breakfast time",
+    "options": [
+      { "label": "A", "action": "Eat breakfast", "room": 6, "sticker": "img/breakfast.png" },
+      { "label": "B", "action": "Workout",        "room": 8, "sticker": "img/workout.png" },
+      { "label": "C", "action": "Skip",           "room": 0, "sticker": "img/null.png" }
+    ]
+  },
+  {
+    "time": "10:00 AM",
+    "prompt": "Work / Study time",
+    "options": [
+      { "label": "A", "action": "Drink water", "room": 2, "sticker": "img/drinking water.png" },
+      { "label": "B", "action": "Smoke break", "room": 7, "sticker": "img/smoking.png" },
+      { "label": "C", "action": "Skip",        "room": 0, "sticker": "img/null.png" }
+    ]
+  },
+  {
+    "time": "1:00 PM",
+    "prompt": "Lunch time",
+    "options": [
+      { "label": "A", "action": "Salad",     "room": 3, "sticker": "img/salad.png" },
+      { "label": "B", "action": "Fast food", "room": 6, "sticker": "img/fast food.png" },
+      { "label": "C", "action": "Skip",      "room": 0, "sticker": "img/null.png" }
+    ]
+  },
+  {
+    "time": "4:00 PM",
+    "prompt": "Afternoon break",
+    "options": [
+      { "label": "A", "action": "Stretch break", "room": 7, "sticker": "img/stretching.png" },
+      { "label": "B", "action": "Snack",         "room": 4, "sticker": "img/snack.png" },
+      { "label": "C", "action": "Skip",          "room": 0, "sticker": "img/null.png" }
+    ]
+  },
+  {
+    "time": "6:00 PM",
+    "prompt": "Dinner time",
+    "options": [
+      { "label": "A", "action": "Home cooking", "room": 3, "sticker": "img/home cooking.png" },
+      { "label": "B", "action": "Drinking",     "room": 6, "sticker": "img/drinking _ beer.png" },
+      { "label": "C", "action": "Skip",         "room": 0, "sticker": "img/null.png" }
+    ]
+  },
+  {
+    "time": "9:00 PM",
+    "prompt": "Get unready",
+    "options": [
+      { "label": "A", "action": "Flossing", "room": 1, "sticker": "img/flossing.png" },
+      { "label": "B", "action": "Skip",     "room": 0, "sticker": "img/null.png" }
+    ]
+  },
+  {
+    "time": "10:00 PM",
+    "end": true
+  }
+]
