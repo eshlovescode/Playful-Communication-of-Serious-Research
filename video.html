@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video — Oral Health Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { width: 100vw; height: 100vh; overflow: hidden; background: #2a2a2a; }
+
+    video {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      z-index: 8;
+    }
+
+    .side-bar {
+      position: fixed;
+      top: 0;
+      height: 100%;
+      background: #000;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #bar-left  { left: 0; }
+    #bar-right { right: 0; }
+
+    /* Room layers */
+    #room-layers {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: 0;
+      height: 0;
+      z-index: 5;
+      pointer-events: none;
+    }
+    .room-layer {
+      position: absolute;
+      width: 200vw;
+      height: 200vh;
+      left: -100vw;
+      top: -100vh;
+    }
+    .room-layer video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    #stickers-layer {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 25;
+    }
+    .sticker-item {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      cursor: grab;
+      pointer-events: auto;
+      user-select: none;
+    }
+    .sticker-item:active { cursor: grabbing; }
+    .sticker-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+    }
+
+    #bottom-btns {      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      z-index: 30;
+    }
+    #prompt {
+      font-size: 1.1rem;
+      color: #fff;
+      text-align: center;
+      text-shadow: 0 1px 4px #000;
+      min-height: 1.5em;
+    }
+    #time-display {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.7);
+      text-align: center;
+      text-shadow: 0 1px 3px #000;
+    }
+    #choice-btns {
+      display: flex;
+      gap: 1.2rem;
+    }
+    #bottom-btns button {
+      padding: 0.7rem 2rem;
+      font-size: 1rem;
+      border: 2px solid #fff;
+      border-radius: 6px;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+    }
+    #bottom-btns button:hover { background: rgba(255,255,255,0.15); }
+    #bottom-btns button:disabled { opacity: 0.3; cursor: default; }
+    #btn-a { background: #1a6fd4 !important; border-color: #1a6fd4 !important; }
+    #btn-a:hover { background: #1558b0 !important; }
+    #btn-b { background: #d4b800 !important; border-color: #d4b800 !important; color: #000 !important; }
+    #btn-b:hover { background: #b89e00 !important; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <img id="overlay" src="image.png" alt="">
+  <div id="bar-left"  class="side-bar"></div>
+  <div id="bar-right" class="side-bar"></div>
+  <div id="room-layers"></div>
+  <div id="stickers-layer">
+    <div class="sticker-item"><img src="img/null.png" alt=""></div>
+    <div class="sticker-item"><img src="img/null.png" alt=""></div>
+    <div class="sticker-item"><img src="img/null.png" alt=""></div>
+    <div class="sticker-item"><img src="img/null.png" alt=""></div>
+    <div class="sticker-item"><img src="img/null.png" alt=""></div>
+    <div class="sticker-item"><img src="img/null.png" alt=""></div>
+    <div class="sticker-item"><img src="img/null.png" alt=""></div>
+    <div class="sticker-item"><img src="img/null.png" alt=""></div>
+  </div>
+
+  <div id="bottom-btns">
+    <div id="time-display"></div>
+    <div id="prompt"></div>
+    <div id="choice-btns">
+      <button id="btn-a">A</button>
+      <button id="btn-b">B</button>
+      <button id="btn-c">C</button>
+    </div>
+    <button id="btn-start">Start</button>
+    <button id="btn-speed" class="hidden">&raquo; Next hour</button>
+  </div>
+
+  <script>
+    const overlayImg = document.getElementById('overlay');
+    const barLeft    = document.getElementById('bar-left');
+    const barRight   = document.getElementById('bar-right');
+
+    function updateBars() {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const nw = overlayImg.naturalWidth;
+      const nh = overlayImg.naturalHeight;
+      if (!nw || !nh) return;
+
+      const renderedW = (nw / nh) > (vw / vh)
+        ? vw
+        : vh * (nw / nh);
+
+      const barW = Math.max(0, Math.ceil((vw - renderedW) / 2) + 1);
+      barLeft.style.width  = barW + 'px';
+      barRight.style.width = barW + 'px';
+    }
+
+    overlayImg.addEventListener('load', updateBars);
+    window.addEventListener('resize', updateBars);
+    if (overlayImg.complete) updateBars();
+
+    function makeDraggable(el) {
+      let dragging = false, ox = 0, oy = 0, cx = 0, cy = 0;
+
+      function initPos() {
+        if (el.dataset.initDone) return;
+        el.dataset.initDone = '1';
+        const rect  = el.getBoundingClientRect();
+        const pRect = el.parentElement.getBoundingClientRect();
+        cx = rect.left - pRect.left;
+        cy = rect.top  - pRect.top;
+        const m = new DOMMatrix(getComputedStyle(el).transform);
+        const angle = Math.atan2(m.b, m.a) * 180 / Math.PI;
+        el.style.transform = `rotate(${Math.round(angle)}deg)`;
+        el.style.left = cx + 'px';
+        el.style.top  = cy + 'px';
+      }
+
+      el.addEventListener('mousedown', (e) => {
+        initPos();
+        dragging = true;
+        ox = e.clientX - cx;
+        oy = e.clientY - cy;
+        el.style.zIndex = 50;
+        e.preventDefault();
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        cx = e.clientX - ox;
+        cy = e.clientY - oy;
+        el.style.left = cx + 'px';
+        el.style.top  = cy + 'px';
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (dragging) { dragging = false; el.style.zIndex = ''; }
+      });
+    }
+
+    const ROOM_ROTATION = { 1: 0, 2: -72, 3: -144, 4: 144, 5: 72, 6: 180, 7: 180, 8: 180 };
+
+    const roomLayersEl = document.getElementById('room-layers');
+    const STICKER_INIT = [
+      { left: '2rem', top: 'calc(12.5% * 0.5)' },
+      { left: '2rem', top: 'calc(12.5% * 1.5)' },
+      { left: '2rem', top: 'calc(12.5% * 2.5)' },
+      { left: '2rem', top: 'calc(12.5% * 3.5)' },
+      { left: '2rem', top: 'calc(12.5% * 4.5)' },
+      { left: '2rem', top: 'calc(12.5% * 5.5)' },
+      { left: '2rem', top: 'calc(12.5% * 6.5)' },
+      { left: '2rem', top: 'calc(12.5% * 7.5)' },
+    ];
+    const stickerEls = Array.from(document.querySelectorAll('.sticker-item'));
+    stickerEls.forEach((el, i) => {
+      el.style.left      = STICKER_INIT[i].left;
+      el.style.top       = STICKER_INIT[i].top;
+      el.style.transform = 'translate(0, -50%)';
+      makeDraggable(el);
+    });
+
+    function updateRoomLayers(choices) {
+      const current = roomLayersEl.children.length;
+      const wanted = (choices || []).filter(ch => ch.room).length;
+      if (wanted === 0 && current > 0) {
+        roomLayersEl.innerHTML = '';
+        return;
+      }
+      (choices || []).slice(current).forEach(ch => {
+        if (!ch.room) return;
+        const rot = ROOM_ROTATION[ch.room] ?? 0;
+        const div = document.createElement('div');
+        div.className = 'room-layer';
+        div.style.transform = `rotate(${rot}deg)`;
+        const vid = document.createElement('video');
+        vid.src = 'vids/50.mp4';
+        vid.autoplay = true;
+        vid.loop = true;
+        vid.muted = true;
+        vid.setAttribute('playsinline', '');
+        div.appendChild(vid);
+        roomLayersEl.appendChild(div);
+        vid.play().catch(() => {});
+      });
+    }
+
+    function updateStickers(s) {
+      if (s.phase === 'waiting' || s.phase === 'done') {
+        stickerEls.forEach(el => el.classList.remove('hidden'));
+      } else if (s.phase === 'choosing') {
+        const roomSlots = new Map(
+          (s.options || [])
+            .filter(o => o.room !== 0)
+            .map(o => [o.room - 1, o.sticker || 'img/null.png'])
+        );
+        stickerEls.forEach((el, i) => {
+          if (roomSlots.has(i)) {
+            el.querySelector('img').src = roomSlots.get(i);
+            el.classList.remove('hidden');
+          } else {
+            el.classList.add('hidden');
+          }
+        });
+      } else if (s.phase === 'acting') {
+        const last = (s.choices || []).slice(-1)[0];
+        const slot = (last && last.room !== 0) ? last.room - 1 : -1;
+        stickerEls.forEach((el, i) => {
+          if (i === slot) {
+            el.querySelector('img').src = last.sticker || 'img/null.png';
+            el.classList.remove('hidden');
+          } else {
+            el.classList.add('hidden');
+          }
+        });
+      }
+    }
+
+    const wsProto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const ws = new WebSocket(wsProto + location.host);
+
+    const promptEl   = document.getElementById('prompt');
+    const timeEl     = document.getElementById('time-display');
+    const btnA       = document.getElementById('btn-a');
+    const btnB       = document.getElementById('btn-b');
+    const btnC       = document.getElementById('btn-c');
+    const btnStart   = document.getElementById('btn-start');
+    const btnSpeed   = document.getElementById('btn-speed');
+    const choiceBtns = document.getElementById('choice-btns');
+
+    function setChoiceUI(s) {
+      timeEl.textContent = s.time || '';
+
+      if (s.phase === 'waiting') {
+        promptEl.textContent = 'Press Start to begin';
+        choiceBtns.classList.add('hidden');
+        btnStart.classList.remove('hidden');
+        btnStart.textContent = 'Start';
+        btnSpeed.classList.add('hidden');
+      } else if (s.phase === 'choosing') {
+        promptEl.textContent = s.prompt || '';
+        btnStart.classList.add('hidden');
+        choiceBtns.classList.remove('hidden');
+        btnSpeed.classList.add('hidden');
+        const opts = s.options || [];
+        btnA.classList.toggle('hidden', opts.length < 1);
+        btnB.classList.toggle('hidden', opts.length < 2);
+        btnC.classList.toggle('hidden', opts.length < 3);
+        if (opts[0]) btnA.textContent = 'A — ' + opts[0].action;
+        if (opts[1]) btnB.textContent = 'B — ' + opts[1].action;
+        if (opts[2]) btnC.textContent = 'C — ' + opts[2].action;
+      } else if (s.phase === 'acting') {
+        const last = s.choices[s.choices.length - 1];
+        promptEl.textContent = last ? last.action : '';
+        choiceBtns.classList.add('hidden');
+        btnStart.classList.add('hidden');
+        btnSpeed.classList.remove('hidden');
+      } else if (s.phase === 'done') {
+        promptEl.textContent = 'Day complete!';
+        choiceBtns.classList.add('hidden');
+        btnStart.classList.remove('hidden');
+        btnStart.textContent = 'Play Again';
+        btnSpeed.classList.add('hidden');
+      }
+    }
+
+    btnA.addEventListener('click', () => ws.send(JSON.stringify({ type: 'pick', label: 'A' })));
+    btnB.addEventListener('click', () => ws.send(JSON.stringify({ type: 'pick', label: 'B' })));
+    btnC.addEventListener('click', () => ws.send(JSON.stringify({ type: 'pick', label: 'C' })));
+    btnStart.addEventListener('click', () => {
+      const type = btnStart.textContent === 'Start' ? 'start' : 'reset';
+      ws.send(JSON.stringify({ type }));
+    });
+    btnSpeed.addEventListener('click', () => ws.send(JSON.stringify({ type: 'speedup' })));
+
+    ws.addEventListener('message', (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type !== 'state') return;
+      const s = msg.state;
+      setChoiceUI(s);
+      updateRoomLayers(s.choices || []);
+      updateStickers(s);
+    });
+  </script>
+</body>
+</html>
